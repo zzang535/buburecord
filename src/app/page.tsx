@@ -9,11 +9,26 @@ interface Album {
   image_url: string;
 }
 
+const GRID_COLUMNS_STORAGE_KEY = 'album-grid-columns';
+
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [gridColumns, setGridColumns] = useState(4);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    const storedColumns = window.localStorage.getItem(GRID_COLUMNS_STORAGE_KEY);
+    const parsedColumns = Number(storedColumns);
+
+    if (parsedColumns >= 1 && parsedColumns <= 10) {
+      setGridColumns(parsedColumns);
+      return;
+    }
+
+    setGridColumns(window.innerWidth >= 1024 ? 4 : 1);
+  }, []);
 
   useEffect(() => {
     const checkAuthAndFetchAlbums = async () => {
@@ -52,6 +67,14 @@ export default function Home() {
     router.push(`/album/${id}`);
   };
 
+  const handleGridToggle = () => {
+    setGridColumns((currentColumns) => {
+      const nextColumns = currentColumns === 10 ? 1 : currentColumns + 1;
+      window.localStorage.setItem(GRID_COLUMNS_STORAGE_KEY, String(nextColumns));
+      return nextColumns;
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
@@ -67,8 +90,11 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-white/5">
+    <div className="min-h-screen bg-black pb-24">
+      <div
+        className="grid gap-px bg-white/5"
+        style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }}
+      >
         {albums.map((album) => (
           <div
             key={album.id}
@@ -81,12 +107,21 @@ export default function Home() {
                 alt={`Album ${album.id}`}
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
-                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                sizes={`${Math.round(100 / gridColumns)}vw`}
               />
             </div>
           </div>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={handleGridToggle}
+        className="fixed right-5 bottom-5 z-50 flex h-14 min-w-14 items-center justify-center rounded-full border border-white/15 bg-white text-black shadow-[0_12px_40px_rgba(255,255,255,0.18)] transition-transform hover:scale-105"
+        aria-label={`Change album grid columns, currently ${gridColumns}`}
+      >
+        <span className="px-4 text-lg font-semibold tracking-tight">{gridColumns}</span>
+      </button>
     </div>
   );
 }
