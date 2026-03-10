@@ -1,0 +1,68 @@
+name: Deploy buburecord
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: buburecord:latest
+  CONTAINER_NAME: buburecord
+  HOST_PORT: 3000
+  CONTAINER_PORT: 3000
+
+jobs:
+  deploy:
+    runs-on: [self-hosted]
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          echo "Building Docker image..."
+          docker build -t "$IMAGE_NAME" . -q
+
+      - name: Deploy container
+        run: |
+          echo "Swapping containers..."
+          docker stop "$CONTAINER_NAME" 2>/dev/null || true
+          docker rm "$CONTAINER_NAME" 2>/dev/null || true
+
+          docker run -d --name "$CONTAINER_NAME" --restart unless-stopped \
+            -p "$HOST_PORT:$CONTAINER_PORT" \
+            -e NODE_ENV=production \
+            -e APP_ENVIRONMENT=production \
+            -e DB_HOST=${{ secrets.DB_HOST }} \
+            -e DB_DATABASE=${{ secrets.DB_DATABASE }} \
+            -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
+            -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+            -e TOKEN_SECRET_KEY=${{ secrets.TOKEN_SECRET_KEY }} \
+            "$IMAGE_NAME"
+
+      - name: Health check
+        run: |
+          echo "Waiting for service..."
+
+          if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
+            echo "Container is not running!"
+            docker logs "$CONTAINER_NAME" --tail 50 || true
+            exit 1
+          fi
+
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS "http://127.0.0.1:$HOST_PORT" >/dev/null; then
+              echo "Deployment successful!"
+              docker logs "$CONTAINER_NAME" --tail 20
+              exit 0
+            fi
+
+            echo "Retrying health check... ($attempt/6)"
+            sleep 5
+          done
+
+          echo "Health check failed!"
+          docker logs "$CONTAINER_NAME" --tail 50
+          exit 1

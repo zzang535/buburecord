@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/utils/jwt';
-import cookie from 'cookie';
+import { parse } from 'cookie';
 
 export interface AuthUser {
   id: number;
@@ -23,7 +23,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
   try {
     // Parse cookies from request headers
     const cookieHeader = request.headers.get('cookie') || '';
-    const parsedCookies = cookie.parse(cookieHeader);
+    const parsedCookies = parse(cookieHeader);
 
     const { access_token, refresh_token } = parsedCookies;
 
