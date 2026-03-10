@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ['sequelize', 'mysql2'],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'd38e565eilzns0.cloudfront.net',
+      },
+    ],
+  },
 };
 
 export default nextConfig;
