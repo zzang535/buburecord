@@ -8,7 +8,7 @@ on:
 env:
   IMAGE_NAME: buburecord:latest
   CONTAINER_NAME: buburecord
-  HOST_PORT: 3000
+  HOST_PORT: 3020
   CONTAINER_PORT: 3000
 
 jobs:
