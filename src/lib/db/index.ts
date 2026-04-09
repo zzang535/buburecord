@@ -2,35 +2,50 @@ import { Sequelize } from 'sequelize';
 import { initUserModel, User } from './models/user';
 import { initFeedModel, Feed } from './models/feed';
 
-// Create Sequelize instance with environment variables
-const sequelize = new Sequelize(
-  process.env.DB_DATABASE || '',
-  process.env.DB_USERNAME || '',
-  process.env.DB_PASSWORD || '',
-  {
-    host: process.env.DB_HOST || 'localhost',
-    dialect: 'mysql',
-    logging: false,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000,
-    },
-    define: {
-      underscored: true,
-      freezeTableName: true,
-    },
-  }
-);
+// globalThis singleton pattern to prevent connection pool leaks during Next.js HMR
+declare global {
+  // eslint-disable-next-line no-var
+  var __buburecord_sequelize: Sequelize | undefined;
+}
 
-// Initialize models
-initUserModel(sequelize);
-initFeedModel(sequelize);
+function createSequelize(): Sequelize {
+  const instance = new Sequelize(
+    process.env.DB_DATABASE || '',
+    process.env.DB_USERNAME || '',
+    process.env.DB_PASSWORD || '',
+    {
+      host: process.env.DB_HOST || 'localhost',
+      dialect: 'mysql',
+      logging: false,
+      pool: {
+        max: 5,
+        min: 0,
+        acquire: 30000,
+        idle: 10000,
+      },
+      define: {
+        underscored: true,
+        freezeTableName: true,
+      },
+    }
+  );
 
-// Set up associations
-User.associate({ Feed });
-Feed.associate({ User });
+  // Initialize models
+  initUserModel(instance);
+  initFeedModel(instance);
+
+  // Set up associations
+  User.associate({ Feed });
+  Feed.associate({ User });
+
+  return instance;
+}
+
+const sequelize = globalThis.__buburecord_sequelize ?? createSequelize();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.__buburecord_sequelize = sequelize;
+}
 
 // Export the sequelize instance and models
 export { sequelize, User, Feed };
